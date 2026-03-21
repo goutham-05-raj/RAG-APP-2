@@ -10,9 +10,7 @@ Core RAG logic:
 from typing import List, Tuple
 
 import numpy as np
-import requests
-
-from config import OLLAMA_BASE_URL, LLM_MODEL, TOP_K
+from config import TOP_K
 from ingest import load_vectorstore, _get_embedder
 from utils import get_logger
 
@@ -76,46 +74,20 @@ def build_prompt(query: str, context_chunks: List[str]) -> str:
 
 # ── LLM Interaction ───────────────────────────────────────────────────────────
 
+import os
+from groq import Groq
+
+# Initialize the Groq client (requires GROQ_API_KEY environment variable)
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
 def ask_llm(prompt: str) -> str:
-    """
-    Send a prompt to Ollama and return the generated answer.
-
-    Args:
-        prompt: Full prompt string including context and question.
-
-    Returns:
-        LLM-generated answer string.
-
-    Raises:
-        ConnectionError: If Ollama is unreachable.
-        RuntimeError:    If the API returns an unexpected response.
-    """
-    url = f"{OLLAMA_BASE_URL}/api/generate"
-    payload = {
-        "model": LLM_MODEL,
-        "prompt": prompt,
-        "stream": False,
-    }
-
-    try:
-        response = requests.post(url, json=payload, timeout=120)
-        response.raise_for_status()
-    except requests.exceptions.ConnectionError as exc:
-        raise ConnectionError(
-            f"Cannot reach Ollama at {OLLAMA_BASE_URL}. "
-            "Make sure Ollama is running (`ollama serve`)."
-        ) from exc
-    except requests.exceptions.HTTPError as exc:
-        raise RuntimeError(f"Ollama API error: {exc}") from exc
-
-    data = response.json()
-    answer = data.get("response", "").strip()
-
-    if not answer:
-        raise RuntimeError("Ollama returned an empty response.")
-
-    logger.info("LLM answered %d characters", len(answer))
-    return answer
+    chat = client.chat.completions.create(
+        messages=[
+            {"role": "user", "content": prompt}
+        ],
+        model="llama3-8b-8192"
+    )
+    return chat.choices[0].message.content
 
 
 # ── Orchestration ─────────────────────────────────────────────────────────────
