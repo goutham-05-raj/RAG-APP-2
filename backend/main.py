@@ -74,6 +74,10 @@ async def health_check() -> dict:
     """Lightweight liveness check."""
     return {"status": "ok"}
 
+@app.get("/routes", tags=["Utility"])
+def get_routes():
+    return [route.path for route in app.routes]
+
 
 @app.post("/upload", response_model=UploadResponse, tags=["Ingestion"])
 async def upload_pdf(file: UploadFile = File(...)) -> UploadResponse:
