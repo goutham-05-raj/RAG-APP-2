@@ -14,7 +14,8 @@ import streamlit as st
 from pathlib import Path
 
 # ── Config ────────────────────────────────────────────────────────────────────
-BACKEND_URL = "http://localhost:8000"
+import os
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 UPLOAD_ENDPOINT = f"{BACKEND_URL}/upload"
 ASK_ENDPOINT = f"{BACKEND_URL}/ask"
 REQUEST_TIMEOUT = 120
