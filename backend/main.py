@@ -25,6 +25,7 @@ from utils import ensure_dirs, get_logger
 logger = get_logger(__name__)
 
 # ── App Bootstrap ─────────────────────────────────────────────────────────────
+print("🔥 MAIN.PY LOADED")
 ensure_dirs()
 
 app = FastAPI(
