@@ -65,6 +65,10 @@ class AnswerResponse(BaseModel):
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+@app.get("/")
+def home():
+    return {"status": "running 🚀"}
+
 @app.get("/health", tags=["Utility"])
 async def health_check() -> dict:
     """Lightweight liveness check."""
