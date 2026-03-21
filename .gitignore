@@ -1,0 +1,28 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# IDEs
+.idea/
+.vscode/
+
+# Project specific
+vectorstore/
+data/
+*.db
+*.sqlite3
+*.pkl
+*.faiss
+
+# OS generated files
+.DS_Store
+Thumbs.db

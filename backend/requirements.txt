@@ -1,0 +1,26 @@
+# ── Web framework ──────────────────────────────────────────────────────────────
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9          # multipart/form-data file uploads
+
+# ── PDF parsing ────────────────────────────────────────────────────────────────
+pypdf==4.2.0
+
+# ── Text splitting ─────────────────────────────────────────────────────────────
+langchain-text-splitters==0.2.4
+
+# ── Embeddings ─────────────────────────────────────────────────────────────────
+sentence-transformers==3.0.1
+
+# ── Vector store ───────────────────────────────────────────────────────────────
+faiss-cpu==1.8.0
+numpy==1.26.4
+
+# ── LLM client ────────────────────────────────────────────────────────────────
+requests==2.32.3
+
+# ── Config / env ──────────────────────────────────────────────────────────────
+python-dotenv==1.0.1
+
+# ── Data validation (bundled with fastapi, pinned for clarity) ─────────────────
+pydantic==2.7.1
