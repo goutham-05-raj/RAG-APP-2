@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+venv311/
+env/
+
+# Temp files
+temp.pdf
+*.pdf
+vector_db/
+chroma_db/
+
+# Secrets
+.env
+secrets.toml
+
+# IDE
+.vscode/
+.idea/
