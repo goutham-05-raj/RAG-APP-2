@@ -1,22 +1,28 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
 # Python
 __pycache__/
 *.py[cod]
-*.pyo
-.venv/
-venv/
-venv311/
-env/
+*$py.class
+*.so
 
-# Temp files
-temp.pdf
-*.pdf
-vector_db/
-chroma_db/
-
-# Secrets
-.env
-secrets.toml
-
-# IDE
-.vscode/
+# IDEs
 .idea/
+.vscode/
+
+# Project specific
+vectorstore/
+data/
+*.db
+*.sqlite3
+*.pkl
+*.faiss
+
+# OS generated files
+.DS_Store
+Thumbs.db
