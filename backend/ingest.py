@@ -19,12 +19,6 @@ os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
-import faiss
-import numpy as np
-from pypdf import PdfReader
-from sentence_transformers import SentenceTransformer
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-
 from config import (
     CHUNK_SIZE,
     CHUNK_OVERLAP,
@@ -36,13 +30,14 @@ from utils import get_logger
 logger = get_logger(__name__)
 
 # ── Singleton embedding model (loaded once per process) ────────────────────────
-_embedder: SentenceTransformer | None = None
+_embedder = None
 
 
-def _get_embedder() -> SentenceTransformer:
+def _get_embedder():
     """Lazily load the SentenceTransformer model and cache it in module scope."""
     global _embedder
     if _embedder is None:
+        from sentence_transformers import SentenceTransformer
         logger.info("Loading embedding model: %s", EMBEDDING_MODEL)
         _embedder = SentenceTransformer(EMBEDDING_MODEL)
     return _embedder
@@ -67,6 +62,7 @@ def load_pdf(pdf_path: Path) -> str:
     if not pdf_path.exists():
         raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
+    from pypdf import PdfReader
     reader = PdfReader(str(pdf_path))
     pages_text: List[str] = []
 
@@ -95,6 +91,8 @@ def split_text(text: str) -> List[str]:
     Returns:
         List of text chunk strings.
     """
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+    
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
         chunk_overlap=CHUNK_OVERLAP,
@@ -118,6 +116,9 @@ def build_vectorstore(chunks: List[str]) -> Tuple[faiss.IndexFlatL2, List[str]]:
     Returns:
         Tuple of (faiss_index, chunks) where chunks is preserved for lookup.
     """
+    import faiss
+    import numpy as np
+    
     embedder = _get_embedder()
     # Use a small batch_size to prevent Out Of Memory crashes on free tiers
     embeddings = embedder.encode(chunks, batch_size=8, show_progress_bar=False, convert_to_numpy=True)
@@ -140,6 +141,8 @@ def save_vectorstore(index: faiss.IndexFlatL2, chunks: List[str], name: str = "i
         chunks: Corresponding text chunks (saved as pickle).
         name:   Base filename (without extension) for the saved files.
     """
+    import faiss
+    
     VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
     faiss.write_index(index, str(VECTORSTORE_DIR / f"{name}.faiss"))
     with open(VECTORSTORE_DIR / f"{name}.pkl", "wb") as f:
@@ -169,6 +172,7 @@ def load_vectorstore(name: str = "index") -> Tuple[faiss.IndexFlatL2, List[str]]
             "Please upload and process a PDF first."
         )
 
+    import faiss
     index = faiss.read_index(str(index_path))
     with open(meta_path, "rb") as f:
         chunks = pickle.load(f)

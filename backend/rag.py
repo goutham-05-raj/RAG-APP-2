@@ -8,8 +8,6 @@ Core RAG logic:
 """
 
 from typing import List, Tuple
-
-import numpy as np
 from config import TOP_K
 from ingest import load_vectorstore, _get_embedder
 from utils import get_logger
