@@ -47,10 +47,11 @@ def retrieve(query: str, top_k: int = 15) -> Tuple[List[str], List[float]]:
 def build_prompt(query: str, context_chunks: List[str]) -> str:
     context = "\n\n---\n\n".join(context_chunks)
     prompt = (
-        "You are a precise and factual assistant. "
-        "Answer the question ONLY from the provided context below. "
-        "If the answer is not found in the context, respond with exactly: "
-        "'I don't know based on the provided document.'\n\n"
+        "You are a strict, factual data extractor. "
+        "Your ONLY job is to answer the question based strictly and exclusively on the provided Context. "
+        "Do not use outside knowledge. Do not guess. Do not make up information. "
+        "If the exact answer is not explicitly written in the Context, you MUST reply with exactly: "
+        "'I am sorry, but the answer to this question is not found in the uploaded document.'\n\n"
         f"Context:\n{context}\n\n"
         f"Question: {query}\n\n"
         "Answer:"
@@ -65,7 +66,8 @@ def ask_llm(prompt: str) -> str:
         messages=[
             {"role": "user", "content": prompt}
         ],
-        model="llama-3.1-8b-instant"
+        model="llama-3.1-8b-instant",
+        temperature=0.0
     )
     return chat.choices[0].message.content
 
