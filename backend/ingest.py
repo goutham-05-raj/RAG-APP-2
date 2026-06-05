@@ -28,12 +28,12 @@ def load_pdf(pdf_path: Path) -> str:
     if not pdf_path.exists():
         raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
-    from pypdf import PdfReader
-    reader = PdfReader(str(pdf_path))
+    import fitz  # PyMuPDF
+    doc = fitz.open(str(pdf_path))
     pages_text: List[str] = []
 
-    for i, page in enumerate(reader.pages):
-        text = page.extract_text() or ""
+    for page in doc:
+        text = page.get_text() or ""
         if text.strip():
             pages_text.append(text)
 
