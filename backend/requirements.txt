@@ -9,11 +9,10 @@ pypdf==4.2.0
 # ── Text splitting ─────────────────────────────────────────────────────────────
 langchain-text-splitters==0.2.4
 
-# ── Embeddings ─────────────────────────────────────────────────────────────────
-sentence-transformers==3.0.1
+# ── Embeddings / Search ────────────────────────────────────────────────────────
+scikit-learn==1.4.2
 
-# ── Vector store ───────────────────────────────────────────────────────────────
-faiss-cpu==1.8.0
+# ── Vector store (Not used anymore, but keeping section for structure) ────────
 numpy==1.26.4
 
 # ── LLM client ────────────────────────────────────────────────────────────────

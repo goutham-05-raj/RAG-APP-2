@@ -1,62 +1,50 @@
 """
 rag.py
 ------
-Core RAG logic:
-  1. Retrieve semantically relevant chunks from the FAISS index
+Core RAG logic using TF-IDF:
+  1. Retrieve relevant chunks using cosine similarity
   2. Build a context-grounded prompt
-  3. Call Ollama LLM and return the answer
+  3. Call Groq LLM and return the answer
 """
 
 from typing import List, Tuple
 from config import TOP_K
-from ingest import load_vectorstore, _get_embedder
+from ingest import load_vectorstore
 from utils import get_logger
+import os
+from groq import Groq
 
 logger = get_logger(__name__)
+
+# Initialize the Groq client
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 # ── Retrieval ─────────────────────────────────────────────────────────────────
 
 def retrieve(query: str, top_k: int = TOP_K) -> Tuple[List[str], List[float]]:
     """
-    Embed the query and return the top_k most relevant chunks.
-
-    Args:
-        query:  User question string.
-        top_k:  Number of chunks to retrieve.
-
-    Returns:
-        Tuple of (list_of_chunks, list_of_distances).
-
-    Raises:
-        FileNotFoundError: Propagated from load_vectorstore when no index exists.
+    Find the most relevant chunks using TF-IDF cosine similarity.
     """
-    index, chunks = load_vectorstore()
-    embedder = _get_embedder()
-
-    query_vec = embedder.encode([query], convert_to_numpy=True).astype("float32")
-    distances, indices = index.search(query_vec, top_k)
-
-    retrieved = [chunks[i] for i in indices[0] if i < len(chunks)]
-    dists = distances[0].tolist()
+    vectorizer, tfidf_matrix, chunks = load_vectorstore()
+    
+    from sklearn.metrics.pairwise import cosine_similarity
+    
+    query_vec = vectorizer.transform([query])
+    similarities = cosine_similarity(query_vec, tfidf_matrix).flatten()
+    
+    # Get indices of top_k highest similarities
+    indices = similarities.argsort()[-top_k:][::-1]
+    
+    retrieved = [chunks[i] for i in indices]
+    scores = [float(similarities[i]) for i in indices]
 
     logger.info("Retrieved %d chunks for query: %.60s...", len(retrieved), query)
-    return retrieved, dists
+    return retrieved, scores
 
 
 # ── Prompt Construction ────────────────────────────────────────────────────────
 
 def build_prompt(query: str, context_chunks: List[str]) -> str:
-    """
-    Construct a RAG prompt that instructs the LLM to answer strictly
-    from the provided context, avoiding hallucinations.
-
-    Args:
-        query:          User's question.
-        context_chunks: Relevant text passages retrieved from the document.
-
-    Returns:
-        Formatted prompt string ready to send to the LLM.
-    """
     context = "\n\n---\n\n".join(context_chunks)
     prompt = (
         "You are a precise and factual assistant. "
@@ -72,12 +60,6 @@ def build_prompt(query: str, context_chunks: List[str]) -> str:
 
 # ── LLM Interaction ───────────────────────────────────────────────────────────
 
-import os
-from groq import Groq
-
-# Initialize the Groq client (requires GROQ_API_KEY environment variable)
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
 def ask_llm(prompt: str) -> str:
     chat = client.chat.completions.create(
         messages=[
@@ -91,22 +73,10 @@ def ask_llm(prompt: str) -> str:
 # ── Orchestration ─────────────────────────────────────────────────────────────
 
 def answer_question(query: str) -> dict:
-    """
-    Full RAG pipeline: retrieve → build prompt → ask LLM.
-
-    Args:
-        query: User's question.
-
-    Returns:
-        Dict with keys:
-          - "answer"  (str)  : LLM's response
-          - "sources" (list) : Top-k chunk excerpts used as context
-    """
-    chunks, distances = retrieve(query)
+    chunks, scores = retrieve(query)
     prompt = build_prompt(query, chunks)
     llm_answer = ask_llm(prompt)
 
-    # Return short excerpts (first 200 chars) as source evidence
     sources = [c[:200].strip() + ("…" if len(c) > 200 else "") for c in chunks]
 
     return {"answer": llm_answer, "sources": sources}

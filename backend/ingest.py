@@ -1,64 +1,30 @@
 """
 ingest.py
 ---------
-Handles the full document ingestion pipeline:
+Handles the full document ingestion pipeline using lightweight TF-IDF:
   1. Load PDF from disk
-  2. Split text into overlapping chunks
-  3. Generate embeddings with sentence-transformers
-  4. Build and persist a FAISS index
-  5. Load an existing index from disk
+  2. Split text into chunks
+  3. Fit a TfidfVectorizer
+  4. Save the vectorizer, tfidf_matrix, and chunks to disk
 """
 
 import pickle
 from pathlib import Path
 from typing import List, Tuple
-import os
-
-# Limit thread usage to save memory on free tier cloud instances
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
 from config import (
     CHUNK_SIZE,
     CHUNK_OVERLAP,
-    EMBEDDING_MODEL,
     VECTORSTORE_DIR,
 )
 from utils import get_logger
 
 logger = get_logger(__name__)
 
-# ── Singleton embedding model (loaded once per process) ────────────────────────
-_embedder = None
-
-
-def _get_embedder():
-    """Lazily load the SentenceTransformer model and cache it in module scope."""
-    global _embedder
-    if _embedder is None:
-        from sentence_transformers import SentenceTransformer
-        logger.info("Loading embedding model: %s", EMBEDDING_MODEL)
-        _embedder = SentenceTransformer(EMBEDDING_MODEL)
-    return _embedder
-
 
 # ── PDF Loading ────────────────────────────────────────────────────────────────
 
 def load_pdf(pdf_path: Path) -> str:
-    """
-    Extract all text from a PDF file.
-
-    Args:
-        pdf_path: Absolute path to the PDF file.
-
-    Returns:
-        Concatenated text of all pages.
-
-    Raises:
-        FileNotFoundError: If the file does not exist.
-        ValueError: If no text could be extracted.
-    """
     if not pdf_path.exists():
         raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
@@ -82,15 +48,6 @@ def load_pdf(pdf_path: Path) -> str:
 # ── Text Splitting ────────────────────────────────────────────────────────────
 
 def split_text(text: str) -> List[str]:
-    """
-    Split raw text into overlapping chunks suitable for embedding.
-
-    Args:
-        text: Full document text.
-
-    Returns:
-        List of text chunk strings.
-    """
     from langchain_text_splitters import RecursiveCharacterTextSplitter
     
     splitter = RecursiveCharacterTextSplitter(
@@ -104,97 +61,76 @@ def split_text(text: str) -> List[str]:
     return chunks
 
 
-# ── FAISS Index ───────────────────────────────────────────────────────────────
+# ── TF-IDF Index ───────────────────────────────────────────────────────────────
 
-def build_vectorstore(chunks: List[str]) -> Tuple["faiss.IndexFlatL2", List[str]]:
+def build_vectorstore(chunks: List[str]):
     """
-    Embed chunks and build a FAISS L2 index.
-
-    Args:
-        chunks: List of text chunks.
-
-    Returns:
-        Tuple of (faiss_index, chunks) where chunks is preserved for lookup.
+    Fit a TF-IDF vectorizer on the chunks.
     """
-    import faiss
-    import numpy as np
+    from sklearn.feature_extraction.text import TfidfVectorizer
     
-    embedder = _get_embedder()
-    # Use a small batch_size to prevent Out Of Memory crashes on free tiers
-    embeddings = embedder.encode(chunks, batch_size=8, show_progress_bar=False, convert_to_numpy=True)
-    embeddings = np.array(embeddings, dtype="float32")
+    vectorizer = TfidfVectorizer(stop_words='english')
+    tfidf_matrix = vectorizer.fit_transform(chunks)
 
-    dimension = embeddings.shape[1]
-    index = faiss.IndexFlatL2(dimension)
-    index.add(embeddings)
-
-    logger.info("Built FAISS index with %d vectors (dim=%d)", index.ntotal, dimension)
-    return index, chunks
+    logger.info("Built TF-IDF index with %d chunks", len(chunks))
+    return vectorizer, tfidf_matrix, chunks
 
 
-def save_vectorstore(index: "faiss.IndexFlatL2", chunks: List[str], name: str = "index") -> None:
+def save_vectorstore(vectorizer, tfidf_matrix, chunks: List[str], name: str = "index") -> None:
     """
-    Persist FAISS index and associated chunk metadata to disk.
-
-    Args:
-        index:  FAISS index to save.
-        chunks: Corresponding text chunks (saved as pickle).
-        name:   Base filename (without extension) for the saved files.
+    Persist the vectorizer, matrix, and chunks to disk using pickle.
     """
-    import faiss
-    
     VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
-    faiss.write_index(index, str(VECTORSTORE_DIR / f"{name}.faiss"))
+    
+    data = {
+        "vectorizer": vectorizer,
+        "tfidf_matrix": tfidf_matrix,
+        "chunks": chunks
+    }
+    
     with open(VECTORSTORE_DIR / f"{name}.pkl", "wb") as f:
-        pickle.dump(chunks, f)
+        pickle.dump(data, f)
+        
     logger.info("Vectorstore saved → %s", VECTORSTORE_DIR / name)
 
 
-def load_vectorstore(name: str = "index") -> Tuple["faiss.IndexFlatL2", List[str]]:
+def load_vectorstore(name: str = "index"):
     """
-    Load a previously saved FAISS index and chunk metadata from disk.
-
-    Args:
-        name: Base filename (without extension) matching what was used in save_vectorstore.
-
-    Returns:
-        Tuple of (faiss_index, chunks).
-
-    Raises:
-        FileNotFoundError: If the index files do not exist on disk.
+    Load the saved TF-IDF data from disk.
     """
-    index_path = VECTORSTORE_DIR / f"{name}.faiss"
     meta_path = VECTORSTORE_DIR / f"{name}.pkl"
 
-    if not index_path.exists() or not meta_path.exists():
+    if not meta_path.exists():
         raise FileNotFoundError(
             f"No vectorstore found at {VECTORSTORE_DIR}. "
             "Please upload and process a PDF first."
         )
 
-    import faiss
-    index = faiss.read_index(str(index_path))
     with open(meta_path, "rb") as f:
-        chunks = pickle.load(f)
+        data = pickle.load(f)
 
-    logger.info("Loaded vectorstore: %d vectors, %d chunks", index.ntotal, len(chunks))
-    return index, chunks
+    logger.info("Loaded vectorstore: %d chunks", len(data["chunks"]))
+    return data["vectorizer"], data["tfidf_matrix"], data["chunks"]
 
 
 # ── High-Level Ingestion Entry Point ──────────────────────────────────────────
 
 def ingest_pdf(pdf_path: Path) -> int:
-    """
-    Full pipeline: load PDF → split → embed → save vectorstore.
-
-    Args:
-        pdf_path: Path to the uploaded PDF.
-
-    Returns:
-        Number of chunks indexed.
-    """
+    def _log(msg):
+        with open(VECTORSTORE_DIR.parent / "debug.log", "a", encoding="utf-8") as f:
+            f.write(msg + "\n")
+            
+    _log("1. Loading PDF...")
     text = load_pdf(pdf_path)
+    
+    _log(f"2. Splitting text (length: {len(text)})...")
     chunks = split_text(text)
-    index, chunks = build_vectorstore(chunks)
-    save_vectorstore(index, chunks)
+    
+    _log(f"3. Building TF-IDF vectorstore with {len(chunks)} chunks...")
+    vectorizer, tfidf_matrix, chunks = build_vectorstore(chunks)
+    
+    _log("4. Saving TF-IDF to disk...")
+    save_vectorstore(vectorizer, tfidf_matrix, chunks)
+    
+    _log("5. Done!")
     return len(chunks)

@@ -79,6 +79,13 @@ async def health_check() -> dict:
 def get_routes():
     return [route.path for route in app.routes]
 
+@app.get("/debug", tags=["Utility"])
+def get_debug_log():
+    log_path = DATA_DIR / "debug.log"
+    if log_path.exists():
+        return {"log": log_path.read_text(encoding="utf-8")}
+    return {"log": "No debug log found."}
+
 
 @app.post("/upload", response_model=UploadResponse, tags=["Ingestion"])
 async def upload_pdf(file: UploadFile = File(...)) -> UploadResponse:
@@ -104,11 +111,19 @@ async def upload_pdf(file: UploadFile = File(...)) -> UploadResponse:
         await file.close()
 
     try:
+        with open(DATA_DIR / "debug.log", "a", encoding="utf-8") as f:
+            f.write(f"\\n--- Starting upload for {file.filename} ---\\n")
         chunk_count = ingest_pdf(save_path)
+        with open(DATA_DIR / "debug.log", "a", encoding="utf-8") as f:
+            f.write("Upload completed successfully!\\n")
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Ingestion failed for %s", file.filename)
+        import traceback
+        with open(DATA_DIR / "debug.log", "a", encoding="utf-8") as f:
+            f.write(f"CRASH: {exc}\\n")
+            f.write(traceback.format_exc() + "\\n")
         raise HTTPException(status_code=500, detail=f"Ingestion error: {exc}") from exc
 
     return UploadResponse(
