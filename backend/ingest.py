@@ -106,7 +106,7 @@ def split_text(text: str) -> List[str]:
 
 # ── FAISS Index ───────────────────────────────────────────────────────────────
 
-def build_vectorstore(chunks: List[str]) -> Tuple[faiss.IndexFlatL2, List[str]]:
+def build_vectorstore(chunks: List[str]) -> Tuple["faiss.IndexFlatL2", List[str]]:
     """
     Embed chunks and build a FAISS L2 index.
 
@@ -132,7 +132,7 @@ def build_vectorstore(chunks: List[str]) -> Tuple[faiss.IndexFlatL2, List[str]]:
     return index, chunks
 
 
-def save_vectorstore(index: faiss.IndexFlatL2, chunks: List[str], name: str = "index") -> None:
+def save_vectorstore(index: "faiss.IndexFlatL2", chunks: List[str], name: str = "index") -> None:
     """
     Persist FAISS index and associated chunk metadata to disk.
 
@@ -150,7 +150,7 @@ def save_vectorstore(index: faiss.IndexFlatL2, chunks: List[str], name: str = "i
     logger.info("Vectorstore saved → %s", VECTORSTORE_DIR / name)
 
 
-def load_vectorstore(name: str = "index") -> Tuple[faiss.IndexFlatL2, List[str]]:
+def load_vectorstore(name: str = "index") -> Tuple["faiss.IndexFlatL2", List[str]]:
     """
     Load a previously saved FAISS index and chunk metadata from disk.
 
