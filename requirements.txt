@@ -9,3 +9,7 @@ faiss-cpu
 pypdf
 sentence-transformers
 huggingface-hub
+fastapi
+uvicorn
+python-multipart
+python-dotenv
