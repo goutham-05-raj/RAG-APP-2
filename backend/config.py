@@ -33,8 +33,4 @@ VECTORSTORE_DIR: Path = _ROOT / os.getenv("VECTORSTORE_DIR", "vectorstore")
 
 # ── CORS ───────────────────────────────────────────────────────────────────────
 # Comma-separated list of allowed origins, e.g. "http://localhost:8501,https://myapp.com"
-CORS_ORIGINS: list[str] = [
-    o.strip()
-    for o in os.getenv("CORS_ORIGINS", "http://localhost:8501").split(",")
-    if o.strip()
-]
+CORS_ORIGINS: list[str] = ["*"]
