@@ -21,7 +21,7 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 # ── Retrieval ─────────────────────────────────────────────────────────────────
 
-def retrieve(query: str, top_k: int = TOP_K) -> Tuple[List[str], List[float]]:
+def retrieve(query: str, top_k: int = 15) -> Tuple[List[str], List[float]]:
     """
     Find the most relevant chunks using TF-IDF cosine similarity.
     """
