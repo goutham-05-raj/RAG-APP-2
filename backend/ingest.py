@@ -12,6 +12,12 @@ Handles the full document ingestion pipeline:
 import pickle
 from pathlib import Path
 from typing import List, Tuple
+import os
+
+# Limit thread usage to save memory on free tier cloud instances
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
 import faiss
 import numpy as np
@@ -113,7 +119,8 @@ def build_vectorstore(chunks: List[str]) -> Tuple[faiss.IndexFlatL2, List[str]]:
         Tuple of (faiss_index, chunks) where chunks is preserved for lookup.
     """
     embedder = _get_embedder()
-    embeddings = embedder.encode(chunks, show_progress_bar=False, convert_to_numpy=True)
+    # Use a small batch_size to prevent Out Of Memory crashes on free tiers
+    embeddings = embedder.encode(chunks, batch_size=8, show_progress_bar=False, convert_to_numpy=True)
     embeddings = np.array(embeddings, dtype="float32")
 
     dimension = embeddings.shape[1]
