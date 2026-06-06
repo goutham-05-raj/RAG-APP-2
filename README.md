@@ -1,134 +1,91 @@
-# RAG Application
+# CloudRag / Fallstaff Intelligence Search
 
-A production-ready **Retrieval-Augmented Generation (RAG)** app built with:
+🚀 **Live Demo:** [https://rag-app-2.vercel.app/](https://rag-app-2.vercel.app/)
 
-| Layer | Technology |
-|---|---|
-| Backend | FastAPI + Uvicorn |
-| Frontend | Streamlit |
-| LLM | Ollama (llama3) |
-| Embeddings | sentence-transformers (`all-MiniLM-L6-v2`) |
-| Vector Store | FAISS (local, persistent) |
+A production-ready **Retrieval-Augmented Generation (RAG)** app offering both a standalone Streamlit application and a scalable FastAPI backend architecture. The project has evolved to utilize **Groq's fast LLM APIs** (`llama-3.1-8b-instant`) for inference.
 
----
+## Architectures
 
-## Project Structure
+This repository contains two distinct ways to run the application:
 
-```
-rag-app/
-├── backend/
-│   ├── main.py          # FastAPI routes (no business logic)
-│   ├── rag.py           # Retrieval, prompt building, LLM call
-│   ├── ingest.py        # PDF load, chunk, embed, FAISS index
-│   ├── config.py        # Env-driven settings
-│   ├── utils.py         # Logging + directory helpers
-│   └── requirements.txt
-├── frontend/
-│   └── app.py           # Streamlit chat UI
-├── data/                # Uploaded PDFs land here
-├── vectorstore/         # FAISS index persisted here
-└── .env.example         # Copy → .env before running
-```
+### 1. Standalone Streamlit App
+A simple, all-in-one frontend and backend using LangChain, HuggingFace embeddings (`all-MiniLM-L6-v2`), FAISS vector store, and Groq LLM.
+- **File:** `streamlit_app.py`
+- **Features:** Direct PDF upload, chunking, and interactive chat in a single Streamlit interface.
+
+### 2. Client-Server Architecture (Fallstaff Edition)
+A robust, decoupled setup using a FastAPI backend and a premium Streamlit frontend.
+- **Backend (`backend/`):** FastAPI + Uvicorn. Uses TF-IDF for fast, lightweight document retrieval and Groq API for LLM inference.
+- **Frontend (`frontend/app.py`):** A beautifully designed "Fallstaff Edition" Streamlit UI that communicates with the backend via REST API.
 
 ---
 
 ## Prerequisites
 
 1. **Python 3.10+**
-2. **Ollama** — [install](https://ollama.com/download) and pull the model:
-   ```bash
-   ollama pull llama3
-   ollama serve          # keep this running in the background
-   ```
-3. **Streamlit** (frontend only):
-   ```bash
-   pip install streamlit
-   ```
+2. A **Groq API Key** — [Get one here](https://console.groq.com/).
 
 ---
 
 ## Quick Start
 
-### 1 — Clone & configure
+### Option 1: Standalone App
 ```powershell
-cd rag-app
-copy .env.example .env   # Windows
-# Edit .env if you need non-default values (e.g. different model or ports)
+# Install root dependencies
+pip install -r requirements.txt
+
+# Set your Groq API Key
+set GROQ_API_KEY=your_api_key_here  # Windows
+# export GROQ_API_KEY="your_api_key_here"  # Mac/Linux
+
+# Run the app
+streamlit run streamlit_app.py
 ```
 
-### 2 — Install backend dependencies
+### Option 2: Client-Server Architecture
+
+**1. Start the Backend:**
 ```powershell
 cd backend
 pip install -r requirements.txt
-```
 
-### 3 — Start the backend
-```powershell
-cd backend
+# The backend relies on environment variables, set them up:
+# Make sure to add your GROQ_API_KEY inside your environment variables or .env file.
+
 uvicorn main:app --reload --port 8000
 ```
-API docs available at **http://localhost:8000/docs**
+*API docs available at **http://localhost:8000/docs***
 
-### 4 — Start the frontend (new terminal)
+**2. Start the Frontend:**
+Open a new terminal:
 ```powershell
 cd frontend
+# (Requires Streamlit and Requests)
 streamlit run app.py
 ```
-Opens at **http://localhost:8501**
+*Opens at **http://localhost:8501***
 
 ---
 
-## How to Use
-
-1. Open the Streamlit app in your browser.
-2. In the **sidebar**, upload a PDF and click **Upload & Process**.
-3. Type your question in the chat input and click **Ask ➤**.
-4. The assistant answers using only the document's content.
-
----
-
-## API Reference
+## API Reference (FastAPI Backend)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET`  | `/health` | Liveness check |
-| `POST` | `/upload` | Upload + index a PDF |
-| `POST` | `/ask`    | Ask a question (RAG) |
-
-### POST `/upload`
-- **Content-Type**: `multipart/form-data`
-- **Field**: `file` (PDF)
-- **Response**: `{ message, filename, chunks_indexed }`
-
-### POST `/ask`
-- **Body**: `{ "question": "string" }`
-- **Response**: `{ "answer": "string", "sources": ["..."] }`
-
----
-
-## Configuration (`.env`)
-
-| Variable | Default | Description |
-|---|---|---|
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL |
-| `LLM_MODEL` | `llama3` | Ollama model tag |
-| `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | HuggingFace encoder |
-| `CHUNK_SIZE` | `500` | Chars per text chunk |
-| `CHUNK_OVERLAP` | `50` | Overlap between chunks |
-| `TOP_K` | `3` | Chunks retrieved per query |
-| `DATA_DIR` | `data` | PDF storage directory |
-| `VECTORSTORE_DIR` | `vectorstore` | FAISS index directory |
-| `CORS_ORIGINS` | `http://localhost:8501` | Allowed CORS origins |
+| `POST` | `/upload` | Upload + index a PDF using TF-IDF |
+| `POST` | `/ask`    | Ask a question (RAG with Groq) |
 
 ---
 
 ## Deployment Notes
 
-- The vectorstore is file-system based — swap `faiss-cpu` for `pinecone-client` or `weaviate-client` for cloud deployments.
-- Set `OLLAMA_BASE_URL` to your remote Ollama endpoint for cloud inference.
-- The `.env` file is gitignored — use environment secrets on AWS / Render.
+- This project includes a `render.yaml` file for easy cloud deployment of the backend on [Render](https://render.com/). 
+- Set the `GROQ_API_KEY` as an environment secret in your deployment environment.
 
 ---
+
+## Local Testing
+A CLI testing script (`app.py`) is also available in the root directory if you wish to run a quick terminal-based query against a specific PDF file using FAISS and LangChain.
 
 ## License
 
